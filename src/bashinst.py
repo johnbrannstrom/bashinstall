@@ -38,6 +38,7 @@ class YesNoError(Exception):
         """
         return self._message
 
+
 class BashInstall:
     """Installer for Bash."""
 
@@ -53,6 +54,9 @@ class BashInstall:
 
     show_ok_default = False
     """Default value for showing actions with ok status."""
+
+    script = None
+    """Name of script importing and running BashInstall."""
 
     parser = argparse.ArgumentParser(
         description=None,
@@ -108,7 +112,7 @@ class BashInstall:
         self.run_cmd_vars['PROJECT'] = self.project = project
 
         # Install script name
-        self.run_cmd_vars['SCRIPT'] = os.path.basename(__file__)
+        self.run_cmd_vars['SCRIPT'] = self.script
 
         # Install script location
         dir = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -128,15 +132,21 @@ class BashInstall:
         # Create variables from command line arguments with type CmdLineArgVar
         build_in_args = ['actions', 'force_first', 'skip', 'dry_run',
                          'no_prompt', 'show_ok', 'verbose', 'remote']
+        self._custom_options = ''
         for arg, value in vars(args).items():
             if arg not in build_in_args:
                 self.run_cmd_vars[arg.upper()] = value
+                if ' ' in value:
+                    value = '"' + value + '"'
+                arg = arg.replace('_', '-')
+                arg_value = ' --{arg} {value}'
+                self._custom_options += arg_value.format(arg=arg, value=value)
 
         # Set default values according to command line options
         self._mode = 'status'
         if verbose:
             self._mode = 'verbose'
-        if dry_run:
+        if dry_run and not remote:
             self._mode = 'dry-run'
 
         # Prompt before running
@@ -166,7 +176,7 @@ class BashInstall:
                          mode='regular')
 
             # Run install script on remote side
-            opts = ' -p -a ' + ' '.join(args.actions)
+            opts = self._custom_options + ' -p -a ' + ' '.join(args.actions)
             command = "ssh {REMOTE} '/tmp/{PROJECT}/{SCRIPT}{opts}'"
             if skip:
                 opts += ' -s'
@@ -176,6 +186,8 @@ class BashInstall:
                 opts += ' -v'
             if force_first:
                 opts += ' -f'
+            if dry_run:
+                opts += ' -d'
             command = command.replace('{opts}', opts)
             self.run_cmd(command, mode='regular')
             sys.exit(0)

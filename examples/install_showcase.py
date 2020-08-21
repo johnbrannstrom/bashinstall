@@ -10,6 +10,9 @@ This script is a showcase of what can be done with bash install.
 
 """
 
+# Built in modules
+import os
+
 # Local modules
 from bashinst import BashInstall
 
@@ -21,6 +24,7 @@ BashInstall.parser.add_argument('--arg-var1', default='value1', type=str,
                                 help=arg_var1_help, required=False)
 BashInstall.prompt_default = True
 BashInstall.show_ok_default = True
+BashInstall.script = os.path.basename(__file__)
 bash_installer = BashInstall(project='showcase',
                              description='Bash install showcase script.')
 run_cmd = bash_installer.run_cmd
