@@ -23,7 +23,7 @@ import re
 class YesNoError(Exception):
     """Error for malformed yes/no value."""
 
-    def __init__(self, yes_no: str):
+    def __init__(self, yes_no):
         """
         Constructor function.
         :param yes_no: Yes/no value that caused the error.
@@ -49,14 +49,17 @@ class BashInstall:
     """List of available installer actions. Actions should be added to this 
     list  as needed."""
 
-    project = 'Default'
-    """Script project name."""
+    prompt_default = True
+    """Default value for showing a prompt before running."""
 
-    description = 'Installer script for {}.'.format(project)
-    """Description of what the script does."""
+    show_ok_default = False
+    """Default value for showing actions with ok status."""
+
+    script = None
+    """Name of script importing and running BashInstall."""
 
     parser = argparse.ArgumentParser(
-        description=description,
+        description=None,
         formatter_class=argparse.RawTextHelpFormatter)
 
     ok_string = '[ \033[1;32m  OK   \033[0m ] '
@@ -65,13 +68,14 @@ class BashInstall:
     unknown_string = '[ \033[1;49mUNKNOWN\033[0m ] '
 
     @staticmethod
-    def yes_no_to_bool(yes_no: str):
+    def yes_no_to_bool(yes_no):
         """
         Converts yes or no to bool.
         :param yes_no: Non case sensitive yes/no or y/n.
         :rtype:  bool
         :return: True for yes or false for no.
         :raises: YesNoError
+
         """
         if yes_no.lower() == 'yes' or yes_no.lower() == 'y':
             return True
@@ -80,28 +84,34 @@ class BashInstall:
         raise YesNoError(yes_no)
 
     # noinspection PyShadowingNames
-    def __init__(self, project, script):
+    def __init__(self, project='Default', description=None):
         """
         Initializes BashInstall.
 
-        :param project: Project name.
-        :param script: Install script name.
+        :param project:     Project name.
+        :param description: Install script description.
 
         """
         self.first = None
         self.skip = None
         self.cmd_line_args = None
 
+        # Set parser description
+        if description is None:
+            self.parser.description = (
+                'Installer script for {}.'.format(project))
+        else:
+            self.parser.description = description
+
         # Adding variables and values in this dictionary will enable them to be
         # substituted into run_cmd commands
         self.run_cmd_vars = dict()
 
         # Name of project
-        self.run_cmd_vars['PROJECT'] = project
-        self.project = project
+        self.run_cmd_vars['PROJECT'] = self.project = project
 
         # Install script name
-        self.run_cmd_vars['SCRIPT'] = script
+        self.run_cmd_vars['SCRIPT'] = self.script
 
         # Install script location
         dir = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -118,11 +128,24 @@ class BashInstall:
         dry_run = args.dry_run
         force_first = args.force_first
 
+        # Create variables from command line arguments with type CmdLineArgVar
+        build_in_args = ['actions', 'force_first', 'skip', 'dry_run',
+                         'no_prompt', 'show_ok', 'verbose', 'remote']
+        self._custom_options = ''
+        for arg, value in vars(args).items():
+            if arg not in build_in_args:
+                self.run_cmd_vars[arg.upper()] = value
+                if ' ' in value:
+                    value = '"' + value + '"'
+                arg = arg.replace('_', '-')
+                arg_value = ' --{arg} {value}'
+                self._custom_options += arg_value.format(arg=arg, value=value)
+
         # Set default values according to command line options
         self._mode = 'status'
         if verbose:
             self._mode = 'verbose'
-        if dry_run:
+        if dry_run and not remote:
             self._mode = 'dry-run'
 
         # Prompt before running
@@ -135,7 +158,8 @@ class BashInstall:
                     prompt = self.expand_vars(
                         "Are you sure you want to run {PROJECT} installer on {"
                         "host} (yes/no)? ")
-                    yes = self.yes_no_to_bool(input(prompt.format(host=host)))
+                    yes = self.yes_no_to_bool(
+                        raw_input(prompt.format(host=host)))
                     break
                 except YesNoError:
                     pass
@@ -152,7 +176,7 @@ class BashInstall:
                          mode='regular')
 
             # Run install script on remote side
-            opts = ' -p -a ' + ' '.join(args.actions)
+            opts = self._custom_options + ' -p -a ' + ' '.join(args.actions)
             command = "ssh {REMOTE} '/tmp/{PROJECT}/{SCRIPT}{opts}'"
             if skip:
                 opts += ' -s'
@@ -162,6 +186,8 @@ class BashInstall:
                 opts += ' -v'
             if force_first:
                 opts += ' -f'
+            if dry_run:
+                opts += ' -d'
             command = command.replace('{opts}', opts)
             self.run_cmd(command, mode='regular')
             sys.exit(0)
@@ -198,7 +224,7 @@ class BashInstall:
         :param string: Target string to print.
 
         """
-        print(self.expand_vars(string))
+        print self.expand_vars(string)
         sys.stdout.flush()
 
     def bprint(self, string):
@@ -222,7 +248,8 @@ class BashInstall:
         return os.path.exists(self.expand_vars(path))
 
     # noinspection PyShadowingNames,PyUnboundLocalVariable
-    def edit_line(self, file_name, regex, replace, mode=None, show_ok=None):
+    def edit_line(self, file_name, regex, replace, mode=None, show_ok=None,
+                  warning=False):
         """
         Edit line in file matching a regular expression.
 
@@ -237,11 +264,12 @@ class BashInstall:
                           "verbose": Print status, command, stdout and stderr
                                      to screen.
                           "quiet":   Only print errors.
+        :param warning:   If warning status should be shown instead of error.
         :param show_ok:   If ok status should be shown.
 
         """
         # Set default values
-        if mode is None:
+        if mode is None or self._mode == 'dry-run':
             mode = self._mode
         if show_ok is None:
             show_ok = self._show_ok
@@ -295,6 +323,11 @@ class BashInstall:
                                                file_name=file_name)
                 error = None
 
+        # Handle dry run mode
+        if mode == 'dry-run':
+            self._fprint(status_str)
+            return None
+
         # Write file
         if error == '':
             try:
@@ -310,7 +343,9 @@ class BashInstall:
 
         # Print quiet mode
         if mode == 'quiet' and error != '':
-            status = '[ \033[1;91mERROR\033[0m ] '
+            status = self.error_string
+            if warning:
+                status = self.warning_string
             status_str = status + status_str
             self._fprint(status_str)
             if error is not None:
@@ -323,9 +358,11 @@ class BashInstall:
         # Print verbose and status mode
         elif (mode == 'verbose' or mode == 'status') and (
                 error != '' or show_ok):
-            status = '[ \033[1;32m OK  \033[0m ] '
-            if error != '':
-                status = '[ \033[1;91mERROR\033[0m ] '
+            status = self.ok_string
+            if error != '' and warning:
+                status = self.warning_string
+            elif error != '':
+                status = self.error_string
             status_str = status + status_str
             self._fprint(status_str)
             if error != '' and error is not None:
@@ -333,7 +370,7 @@ class BashInstall:
 
     # noinspection PyShadowingNames
     def write_file(self, file_name, content, mode=None, show_ok=None,
-                   file_mode='w'):
+                   file_mode='w', warning=False):
         """
         Write content to file.
 
@@ -347,12 +384,13 @@ class BashInstall:
                                      to screen.
                           "quiet":   Only print errors.
         :param show_ok:   If ok status should be shown.
+        :param warning:   If warning status should be shown instead of error.
         :param file_mode: Setting this to "w" till overwrite the file.
                           Setting this to "a" till append to the file.
 
         """
         # Set default values
-        if mode is None:
+        if mode is None or self._mode == 'dry-run':
             mode = self._mode
         if show_ok is None:
             show_ok = self._show_ok
@@ -367,6 +405,10 @@ class BashInstall:
         if file_mode == 'a':
             status_str = 'Appended content to "{file_name}"'
         status_str = status_str.format(file_name=file_name)
+        # Handle dry run mode
+        if mode == 'dry-run':
+            self._fprint(status_str)
+            return None
         try:
             file = open(file_name, file_mode)
             file.write(content)
@@ -380,7 +422,9 @@ class BashInstall:
 
         # Print quiet mode
         if mode == 'quiet' and error != '':
-            status = '[ \033[1;91mERROR\033[0m ] '
+            status = self.error_string
+            if warning:
+                status = self.warning_string
             status_str = status + status_str
             self._fprint(status_str)
             self._fprint(error)
@@ -392,9 +436,11 @@ class BashInstall:
         # Print verbose and status mode
         elif (mode == 'verbose' or mode == 'status') and (
                 error != '' or show_ok):
-            status = '[ \033[1;32m OK  \033[0m ] '
-            if error != '':
-                status = '[ \033[1;91mERROR\033[0m ] '
+            status = self.ok_string
+            if error != '' and warning:
+                status = self.warning_string
+            elif error != '':
+                status = self.error_string
             status_str = status + status_str
             self._fprint(status_str)
             if error != '':
@@ -403,7 +449,7 @@ class BashInstall:
                 self._fprint(content)
 
     # noinspection PyShadowingNames,PyTypeChecker,PyUnboundLocalVariable
-    def run_cmd(self, command, mode=None, show_ok=None):
+    def run_cmd(self, command, mode=None, show_ok=None, warning=False):
         """
         Run a command and print status.
 
@@ -416,12 +462,13 @@ class BashInstall:
                                    screen.
                         "quiet":   Only print errors.
         :param show_ok: If ok status should be shown.
+        :param warning: If warning status should be shown instead of error.
         :rtype:   str
         :returns: Target command stdout
 
         """
         # Set default values
-        if mode is None:
+        if mode is None or self._mode == 'dry-run':
             mode = self._mode
         if show_ok is None:
             show_ok = self._show_ok
@@ -451,13 +498,15 @@ class BashInstall:
 
                     # Print status for verbose mode
             if mode.lower() == 'verbose':
-                if error:
-                    status = '\033[1;91mERROR\033[0m'
+                if error and warning:
+                    status = self.warning_string
+                elif error:
+                    status = self.error_string
                 else:
-                    status = '\033[1;32m OK  \033[0m'
+                    status = self.ok_string
 
                 # Print status
-                status_str = "[ {status} ] {command}"
+                status_str = "{status}{command}"
                 status_str = status_str.format(status=status,
                                                command=command)
                 self._fprint(status_str)
@@ -471,15 +520,18 @@ class BashInstall:
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE)
             if result.returncode == 0:
-                status = '\033[1;32m OK  \033[0m'
+                status = self.ok_string
                 stderr = ''
+            elif result.returncode != 0 and warning:
+                status = self.warning_string
+                stderr = '\n' + result.stderr.decode('utf-8')
             else:
-                status = '\033[1;91mERROR\033[0m'
+                status = self.error_string
                 stderr = '\n' + result.stderr.decode('utf-8')
 
             # Print status
             if stderr != '' or show_ok:
-                status_str = "[ {status} ] {command}{stderr}"
+                status_str = "{status}{command}{stderr}"
                 status_str = status_str.format(status=status,
                                                command=command,
                                                stderr=stderr)
@@ -487,6 +539,10 @@ class BashInstall:
 
             # Return stdout
             return result.stdout.decode('utf-8')
+
+        # Handle dry run mode
+        elif mode == 'dry-run':
+            self._fprint(command)
 
         # Handle quiet mode
         else:
@@ -496,9 +552,9 @@ class BashInstall:
 
             # Print status if we had an error
             if result.returncode > 0:
-                status = '\033[1;91mERROR\033[0m'
+                status = self.error_string
                 stderr = '\n' + result.stderr.decode('utf-8')
-                status_str = "[ {status} ] {command}{stderr}"
+                status_str = "{status}{command}{stderr}"
                 status_str = status_str.format(status=status,
                                                command=command,
                                                stderr=stderr)
@@ -523,32 +579,37 @@ class BashInstall:
             'Supplying this flag will skip as many time consuming steps as '
             'possible to speed up the installation process. This is used for '
             'development purposes only.')
+        no_prompt_help = "Don't prompt before running."
+        dry_run_help = "Only print commands to screen (don't run them)."
         show_ok_help = 'Supplying this flag will show actions with ok status.'
         verbose_help = 'Supplying this flag will enable all possible output.'
         remote_help = 'Install program on remote user@host.'
-        description = (
-            'Installer script for the {project}.'.format(project=self.project))
-        parser = argparse.ArgumentParser(
-            description=description,
-            formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument('-a', '--actions', default=['default'], nargs="+",
-                            choices=list(self.actions_choices.keys()),
-                            help=action_help,
-                            required=False)
-        parser.add_argument('-f', '--force-first', default=False,
-                            action='store_true', help=force_first_help,
-                            required=False)
-        parser.add_argument('-s', '--skip', default=False, action='store_true',
-                            help=skip_help, required=False)
-        parser.add_argument('-o', '--show-ok', default=False,
-                            action='store_true',
-                            help=show_ok_help, required=False)
-        parser.add_argument('-v', '--verbose', default=False,
-                            action='store_true',
-                            help=verbose_help, required=False)
-        parser.add_argument('-r', '--remote', type=str, default="",
-                            help=remote_help, required=False)
-        args = parser.parse_args()
+        self.parser.add_argument('-a', '--actions', default=['default'],
+                                 nargs="+", help=action_help, required=False,
+                                 choices=list(self.actions_choices.keys()))
+        self.parser.add_argument('-f', '--force-first', default=False,
+                                 action='store_true', help=force_first_help,
+                                 required=False)
+        self.parser.add_argument('-s', '--skip', default=False,
+                                 action='store_true', help=skip_help,
+                                 required=False)
+        self.parser.add_argument('-d', '--dry-run', default=False,
+                                 action='store_true', help=dry_run_help,
+                                 required=False)
+        self.parser.add_argument('-p', '--no-prompt',
+                                 default=not self.prompt_default,
+                                 action='store_true', help=no_prompt_help,
+                                 required=False)
+        self.parser.add_argument('-o', '--show-ok',
+                                 default=self.show_ok_default,
+                                 action='store_true', help=show_ok_help,
+                                 required=False)
+        self.parser.add_argument('-v', '--verbose', default=False,
+                                 action='store_true', help=verbose_help,
+                                 required=False)
+        self.parser.add_argument('-r', '--remote', type=str, default="",
+                                 help=remote_help, required=False)
+        args = self.cmd_line_args = self.parser.parse_args()
 
         # Add all actions if "all" is found in action list
         if 'all' in args.actions:

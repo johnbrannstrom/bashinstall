@@ -84,8 +84,7 @@ class BashInstall:
         raise YesNoError(yes_no)
 
     # noinspection PyShadowingNames
-    def __init__(self, project: str = 'Default',
-                 description: str = None):
+    def __init__(self, project: str = 'Default', description: str = None):
         """
         Initializes BashInstall.
 
