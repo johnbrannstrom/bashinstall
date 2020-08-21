@@ -38,7 +38,6 @@ class YesNoError(Exception):
         """
         return self._message
 
-
 class BashInstall:
     """Installer for Bash."""
 
@@ -125,6 +124,13 @@ class BashInstall:
         verbose = args.verbose
         dry_run = args.dry_run
         force_first = args.force_first
+
+        # Create variables from command line arguments with type CmdLineArgVar
+        build_in_args = ['actions', 'force_first', 'skip', 'dry_run',
+                         'no_prompt', 'show_ok', 'verbose', 'remote']
+        for arg, value in vars(args).items():
+            if arg not in build_in_args:
+                self.run_cmd_vars[arg.upper()] = value
 
         # Set default values according to command line options
         self._mode = 'status'

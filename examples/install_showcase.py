@@ -10,18 +10,15 @@ This script is a showcase of what can be done with bash install.
 
 """
 
-# Built in modules
-import os
-
 # Local modules
 from bashinst import BashInstall
 
 BashInstall.actions_choices.update({
     'custom_option': 'Custom option added for specific installer.'
 })
-custom_arg_help = 'Extra custom argument.'
-BashInstall.parser.add_argument('--custom-arg1', default='value1', type=str,
-                                help=custom_arg_help, required=False)
+arg_var1_help = 'Set variable value from command line valure.'
+BashInstall.parser.add_argument('--arg-var1', default='value1', type=str,
+                                help=arg_var1_help, required=False)
 BashInstall.prompt_default = True
 BashInstall.show_ok_default = True
 bash_installer = BashInstall(project='showcase',
@@ -41,15 +38,16 @@ cmd_line_args = bash_installer.cmd_line_args
 if 'default' in actions:
     run_cmd('echo "Testing default action"')
 
-# Print built in variable values
+# Print variable values
 if 'default' in actions:
     bprint("The value of PROJECT is: {PROJECT}")
     bprint("The value of SCRIPT is: {SCRIPT}")
     bprint("The value of DIR is: {DIR}")
+    bprint("The value of ARG_VAR1 is: {ARG_VAR1}")
 
 # Print value of custom argument
 if 'default' in actions:
-    bprint(cmd_line_args.custom_arg1)
+    bprint(cmd_line_args.arg_var1)
 
 # Test default action and first
 if 'default' in actions and first:
