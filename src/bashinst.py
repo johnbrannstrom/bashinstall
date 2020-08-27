@@ -84,10 +84,11 @@ class BashInstall:
         raise YesNoError(yes_no)
 
     # noinspection PyShadowingNames
-    def __init__(self, project: str = 'Default', description: str = None):
+    def __init__(self, script, project: str = 'Default', description: str = None):
         """
         Initializes BashInstall.
 
+        :param script:      Name of script file.
         :param project:     Project name.
         :param description: Install script description.
 
@@ -111,7 +112,7 @@ class BashInstall:
         self.run_cmd_vars['PROJECT'] = self.project = project
 
         # Install script name
-        self.run_cmd_vars['SCRIPT'] = self.script
+        self.run_cmd_vars['SCRIPT'] = self.script = script
 
         # Install script location
         dir = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -125,7 +126,7 @@ class BashInstall:
         self._show_ok = show_ok = args.show_ok
         remote = args.remote
         verbose = args.verbose
-        dry_run = args.dry_run
+        self.dry_run = dry_run = args.dry_run
         force_first = args.force_first
 
         # Create variables from command line arguments with type CmdLineArgVar
