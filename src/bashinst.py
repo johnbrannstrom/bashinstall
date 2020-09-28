@@ -170,9 +170,7 @@ class BashInstall:
         # run it there instead
         if remote != "":
             self.run_cmd_vars['REMOTE'] = remote
-            self.run_cmd("ssh {REMOTE} 'rm -Rf /tmp/{PROJECT}'",
-                         mode='regular')
-            self.run_cmd('scp -r {DIR} {REMOTE}:/tmp/{PROJECT}',
+            self.run_cmd('rsync -r {DIR}/ {REMOTE}:/tmp/{PROJECT}/',
                          mode='regular')
 
             # Run install script on remote side
