@@ -212,7 +212,7 @@ class BashInstall:
         for key, val in self.run_cmd_vars.items():
             var = '{' + key + '}'
             if var in string:
-                string = string.replace(var, val)
+                string = string.replace(var, str(val))
         return string
 
     def bprint(self, string: str):
