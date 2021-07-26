@@ -42,6 +42,7 @@ BashInstall.parser.add_argument('--custom-arg1', default='value1', type=str,
                                 help=custom_arg_help, required=False)
 BashInstall.prompt_default = True
 BashInstall.show_ok_default = True
+BashInstall.remote_required = false
 bash_installer = BashInstall(script=os.path.basename(__file__),
                              project='showcase',
                              description='Bash install showcase script.')
