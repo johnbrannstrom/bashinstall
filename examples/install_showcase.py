@@ -19,13 +19,14 @@ from bashinst import BashInstall
 BashInstall.actions_choices.update({
     'custom_option': 'Custom option added for specific installer.'
 })
-arg_var1_help = 'Set variable value from command line valure.'
-BashInstall.parser.add_argument('--arg-var1', default='value1', type=str,
-                                help=arg_var1_help, required=False)
+custom_arg_help = 'Extra custom argument.'
+BashInstall.parser.add_argument('--custom-arg1', default='value1', type=str,
+                                help=custom_arg_help, required=False)
 BashInstall.prompt_default = True
 BashInstall.show_ok_default = True
-BashInstall.script = os.path.basename(__file__)
-bash_installer = BashInstall(project='showcase',
+BashInstall.remote_required = False
+bash_installer = BashInstall(script=os.path.basename(__file__),
+                             project='showcase',
                              description='Bash install showcase script.')
 run_cmd = bash_installer.run_cmd
 write_file = bash_installer.write_file

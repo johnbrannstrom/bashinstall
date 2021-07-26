@@ -61,6 +61,7 @@ class BashInstall:
     script = None
     """Name of script importing and running BashInstall."""
 
+    # noinspection PyTypeChecker
     parser = argparse.ArgumentParser(
         description=None,
         formatter_class=argparse.RawTextHelpFormatter)
@@ -555,7 +556,7 @@ class BashInstall:
             # Return stdout
             return result.stdout.decode('utf-8')
 
-    # noinspection PyShadowingNames
+    # noinspection PyShadowingNames,PyTypeChecker
     def _parse_command_line_options(self):
         """
         Parse options from the command line.
@@ -576,32 +577,48 @@ class BashInstall:
         show_ok_help = 'Supplying this flag will show actions with ok status.'
         verbose_help = 'Supplying this flag will enable all possible output.'
         remote_help = 'Install program on remote user@host.'
-        self.parser.add_argument('-a', '--actions', default=['default'],
-                                 nargs="+", help=action_help, required=False,
-                                 choices=list(self.actions_choices.keys()))
-        self.parser.add_argument('-f', '--force-first', default=False,
-                                 action='store_true', help=force_first_help,
-                                 required=False)
-        self.parser.add_argument('-s', '--skip', default=False,
-                                 action='store_true', help=skip_help,
-                                 required=False)
-        self.parser.add_argument('-d', '--dry-run', default=False,
-                                 action='store_true', help=dry_run_help,
-                                 required=False)
-        self.parser.add_argument('-p', '--no-prompt',
-                                 default=not self.prompt_default,
-                                 action='store_true', help=no_prompt_help,
-                                 required=False)
-        self.parser.add_argument('-o', '--show-ok',
-                                 default=self.show_ok_default,
-                                 action='store_true', help=show_ok_help,
-                                 required=False)
-        self.parser.add_argument('-v', '--verbose', default=False,
-                                 action='store_true', help=verbose_help,
-                                 required=False)
+        add_arg_list = [
+            (('-a', '--actions'),
+             {'default': ['default'], 'nargs': "+", 'help': action_help,
+              'required': False,
+              'choices': list(self.actions_choices.keys())}),
+            (('-f', '--force-first'),
+             {'default': False, 'action': 'store_true',
+              'help': force_first_help, 'required': False}),
+            (('-s', '--skip'),
+             {'default': False, 'action': 'store_true', 'help': skip_help,
+              'required': False}),
+            (('-d', '--dry-run'),
+             {'default': False, 'action': 'store_true', 'help': dry_run_help,
+              'required': False}),
+            (('-p', '--no-prompt'),
+             {'default': not self.prompt_default, 'action': 'store_true',
+              'help': no_prompt_help, 'required': False}),
+            (('-o', '--show-ok'),
+             {'default': self.show_ok_default, 'action': 'store_true',
+              'help': show_ok_help, 'required': False}),
+            (('-v', '--verbose'),
+             {'default': False, 'action': 'store_true', 'help': verbose_help,
+              'required': False}),
+        ]
+        # This conditional double parsing is necessary to guarantee that
+        # "remote_required" is only used locally
+        # noinspection PyTypeChecker
+        remote_parser = argparse.ArgumentParser(
+            description=self.parser.description,
+            formatter_class=argparse.RawTextHelpFormatter)
+        for arg in add_arg_list:
+            self.parser.add_argument(*arg[0], **arg[1])
+            remote_parser.add_argument(*arg[0], **arg[1])
+
+        remote_parser.add_argument('-r', '--remote', type=str, default="",
+                                   help=remote_help, required=False)
         self.parser.add_argument('-r', '--remote', type=str, default="",
-                                 help=remote_help, required=self.remote_required)
-        args = self.cmd_line_args = self.parser.parse_args()
+                                 help=remote_help,
+                                 required=self.remote_required)
+        args = self.cmd_line_args = remote_parser.parse_args()
+        if args.remote != "":
+            args = self.cmd_line_args = self.parser.parse_args()
 
         # Add all actions if "all" is found in action list
         if 'all' in args.actions:
