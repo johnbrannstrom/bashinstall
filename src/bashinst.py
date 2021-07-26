@@ -54,6 +54,9 @@ class BashInstall:
 
     show_ok_default = False
     """Default value for showing actions with ok status."""
+    
+    remote_required = False
+    """Default value for if remote command line option is required."""
 
     script = None
     """Name of script importing and running BashInstall."""
@@ -597,7 +600,7 @@ class BashInstall:
                                  action='store_true', help=verbose_help,
                                  required=False)
         self.parser.add_argument('-r', '--remote', type=str, default="",
-                                 help=remote_help, required=False)
+                                 help=remote_help, required=self.remote_required)
         args = self.cmd_line_args = self.parser.parse_args()
 
         # Add all actions if "all" is found in action list
