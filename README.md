@@ -42,7 +42,8 @@ BashInstall.parser.add_argument('--custom-arg1', default='value1', type=str,
                                 help=custom_arg_help, required=False)
 BashInstall.prompt_default = True
 BashInstall.show_ok_default = True
-bash_installer = BashInstall(project='showcase',
+bash_installer = BashInstall(script=os.path.basename(__file__),
+                             project='showcase',
                              description='Bash install showcase script.')
 run_cmd = bash_installer.run_cmd
 write_file = bash_installer.write_file
