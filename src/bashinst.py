@@ -140,11 +140,12 @@ class BashInstall:
         force_first = args.force_first
 
         # Create variables from command line arguments with type CmdLineArgVar
-        build_in_args = ['actions', 'force_first', 'skip', 'dry_run',
-                         'no_prompt', 'show_ok', 'verbose', 'remote']
+        built_in_args = ['actions', 'force_first', 'skip', 'dry_run',
+                         'no_prompt', 'show_ok', 'verbose', 'remote',
+                         'is_remote']
         self._custom_options = ''
         for arg, value in vars(args).items():
-            if arg not in build_in_args:
+            if arg not in built_in_args:
                 self.run_cmd_vars[arg.upper()] = value
                 if ' ' in value:
                     value = '"' + value + '"'
@@ -184,7 +185,7 @@ class BashInstall:
                          mode='regular')
 
             # Run install script on remote side
-            opts = self._custom_options + ' -p -a ' + ' '.join(args.actions)
+            opts = self._custom_options + ' -i -p -a ' + ' '.join(args.actions)
             command = "ssh {REMOTE} '/tmp/{PROJECT}/{SCRIPT}{opts}'"
             if skip:
                 opts += ' -s'
@@ -619,6 +620,9 @@ class BashInstall:
             (('-v', '--verbose'),
              {'default': False, 'action': 'store_true', 'help': verbose_help,
               'required': False}),
+            (('-i', '--is-remote'),
+             {'default': False, 'action': 'store_true',
+              'help': argparse.SUPPRESS, 'required': False}),
         ]
         # This conditional double parsing is necessary to guarantee that
         # "remote_required" is only used locally
@@ -634,7 +638,7 @@ class BashInstall:
                                   help=remote_help,
                                   required=self.remote_required)
         args = self.cmd_line_args = self._remote_parser.parse_args()
-        if args.remote != "":
+        if not args.is_remote:
             args = self.cmd_line_args = self._parser.parse_args()
 
         # Add all actions if "all" is found in action list

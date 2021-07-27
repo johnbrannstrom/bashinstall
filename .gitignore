@@ -3,3 +3,4 @@ __pycache__
 *.pyc
 examples/bashinst.py
 examples/bashinst2.py
+examples/test.py
