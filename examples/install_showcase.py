@@ -16,12 +16,13 @@ import os
 # Local modules
 from bashinst import BashInstall
 
+# Init Bash installer
 BashInstall.actions_choices.update({
     'custom_option': 'Custom option added for specific installer.'
 })
 custom_arg_help = 'Extra custom argument.'
-BashInstall.parser.add_argument('--custom-arg1', default='value1', type=str,
-                                help=custom_arg_help, required=False)
+BashInstall.add_argument('--custom-arg1', default='value1', type=str,
+                         help=custom_arg_help, required=False)
 BashInstall.prompt_default = True
 BashInstall.show_ok_default = True
 BashInstall.remote_required = False
@@ -48,11 +49,11 @@ if 'default' in actions:
     bprint("The value of PROJECT is: {PROJECT}")
     bprint("The value of SCRIPT is: {SCRIPT}")
     bprint("The value of DIR is: {DIR}")
-    bprint("The value of ARG_VAR1 is: {ARG_VAR1}")
+    bprint("The value of CUSTOM_ARG1 is: {CUSTOM_ARG1}")
 
 # Print value of custom argument
 if 'default' in actions:
-    bprint(cmd_line_args.arg_var1)
+    bprint(cmd_line_args.custom_arg1)
 
 # Test default action and first
 if 'default' in actions and first:

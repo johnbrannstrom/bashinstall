@@ -1,1 +1,0 @@
-../src/bashinst2.py

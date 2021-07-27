@@ -62,7 +62,12 @@ class BashInstall:
     """Name of script importing and running BashInstall."""
 
     # noinspection PyTypeChecker
-    parser = argparse.ArgumentParser(
+    _parser = argparse.ArgumentParser(
+        description=None,
+        formatter_class=argparse.RawTextHelpFormatter)
+
+    # noinspection PyTypeChecker
+    _remote_parser = argparse.ArgumentParser(
         description=None,
         formatter_class=argparse.RawTextHelpFormatter)
 
@@ -103,10 +108,11 @@ class BashInstall:
 
         # Set parser description
         if description is None:
-            self.parser.description = (
+            self._parser.description = (
                 'Installer script for {}.'.format(project))
         else:
-            self.parser.description = description
+            self._parser.description = description
+        self._remote_parser.description = self._parser.description
 
         # Adding variables and values in this dictionary will enable them to be
         # substituted into run_cmd commands
@@ -556,6 +562,19 @@ class BashInstall:
             # Return stdout
             return result.stdout.decode('utf-8')
 
+    @staticmethod
+    def add_argument(*args, **kwargs):
+        """
+        Add arguments to the command line parser.
+
+        Note:
+            This function is needed to add arguments to both remote and local
+            parsers.
+
+        """
+        BashInstall._parser.add_argument(*args, **kwargs)
+        BashInstall._remote_parser.add_argument(*args, **kwargs)
+
     # noinspection PyShadowingNames,PyTypeChecker
     def _parse_command_line_options(self):
         """
@@ -604,21 +623,19 @@ class BashInstall:
         # This conditional double parsing is necessary to guarantee that
         # "remote_required" is only used locally
         # noinspection PyTypeChecker
-        remote_parser = argparse.ArgumentParser(
-            description=self.parser.description,
-            formatter_class=argparse.RawTextHelpFormatter)
         for arg in add_arg_list:
-            self.parser.add_argument(*arg[0], **arg[1])
-            remote_parser.add_argument(*arg[0], **arg[1])
+            self._parser.add_argument(*arg[0], **arg[1])
+            self._remote_parser.add_argument(*arg[0], **arg[1])
 
-        remote_parser.add_argument('-r', '--remote', type=str, default="",
-                                   help=remote_help, required=False)
-        self.parser.add_argument('-r', '--remote', type=str, default="",
-                                 help=remote_help,
-                                 required=self.remote_required)
-        args = self.cmd_line_args = remote_parser.parse_args()
+        self._remote_parser.add_argument('-r', '--remote', type=str,
+                                         default="", help=remote_help,
+                                         required=False)
+        self._parser.add_argument('-r', '--remote', type=str, default="",
+                                  help=remote_help,
+                                  required=self.remote_required)
+        args = self.cmd_line_args = self._remote_parser.parse_args()
         if args.remote != "":
-            args = self.cmd_line_args = self.parser.parse_args()
+            args = self.cmd_line_args = self._parser.parse_args()
 
         # Add all actions if "all" is found in action list
         if 'all' in args.actions:

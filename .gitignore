@@ -1,3 +1,5 @@
 .idea
 __pycache__
 *.pyc
+examples/bashinst.py
+examples/bashinst2.py
