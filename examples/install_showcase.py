@@ -36,6 +36,7 @@ bprint = bash_installer.bprint
 expand_vars = bash_installer.expand_vars
 first = bash_installer.first
 skip = bash_installer.skip
+verbose = bash_installer.verbose
 actions = bash_installer.actions
 run_cmd_vars = bash_installer.run_cmd_vars
 cmd_line_args = bash_installer.cmd_line_args

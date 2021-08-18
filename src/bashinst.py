@@ -158,7 +158,7 @@ class BashInstall:
         no_prompt = args.no_prompt
         self._show_ok = show_ok = args.show_ok
         remote = args.remote
-        verbose = args.verbose
+        self.verbose = verbose = args.verbose
         self.dry_run = dry_run = args.dry_run
         force_first = args.force_first
         _uuid = self.uuid = args.uuid
