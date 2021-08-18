@@ -18,6 +18,7 @@ import argparse
 import os
 import sys
 import re
+import uuid
 
 
 class YesNoError(Exception):
@@ -39,6 +40,7 @@ class YesNoError(Exception):
         return self._message
 
 
+# noinspection DuplicatedCode
 class BashInstall:
     """Installer for Bash."""
 
@@ -80,6 +82,7 @@ class BashInstall:
     def yes_no_to_bool(yes_no: str):
         """
         Converts yes or no to bool.
+
         :param yes_no: Non case sensitive yes/no or y/n.
         :rtype:  bool
         :return: True for yes or false for no.
@@ -91,6 +94,26 @@ class BashInstall:
         elif yes_no.lower() == 'no' or yes_no.lower() == 'n':
             return False
         raise YesNoError(yes_no)
+
+    @staticmethod
+    def get_uuid():
+        """
+        Get a UUID from disk or generate one.
+
+        :rtype:  str
+        :return: UUID
+
+        """
+        try:
+            file = open('.bashinst', 'r', encoding='utf-8')
+            _uuid = file.readlines()[0]
+            file.close()
+        except FileNotFoundError:
+            file = open('.bashinst', 'w', encoding='utf-8')
+            _uuid = str(uuid.uuid4())
+            file.writelines(_uuid)
+            file.close()
+        return _uuid
 
     # noinspection PyShadowingNames
     def __init__(self, script, project: str = 'Default', description: str = None):
@@ -138,11 +161,17 @@ class BashInstall:
         verbose = args.verbose
         self.dry_run = dry_run = args.dry_run
         force_first = args.force_first
+        _uuid = self.uuid = args.uuid
+        if self.uuid == '':
+            _uuid = self.uuid = self.get_uuid()
+
+        # UUID
+        self.run_cmd_vars['UUID'] = self.uuid
 
         # Create variables from command line arguments with type CmdLineArgVar
         built_in_args = ['actions', 'force_first', 'skip', 'dry_run',
                          'no_prompt', 'show_ok', 'verbose', 'remote',
-                         'is_remote']
+                         'is_remote', 'uuid']
         self._custom_options = ''
         for arg, value in vars(args).items():
             if arg not in built_in_args:
@@ -181,12 +210,14 @@ class BashInstall:
         # run it there instead
         if remote != "":
             self.run_cmd_vars['REMOTE'] = remote
-            self.run_cmd('rsync -r {DIR}/ {REMOTE}:/tmp/{PROJECT}/',
+            self.run_cmd('rsync -r {DIR}/ {REMOTE}:/tmp/{UUID}/',
                          mode='regular')
 
             # Run install script on remote side
-            opts = self._custom_options + ' -i -p -a ' + ' '.join(args.actions)
-            command = "ssh {REMOTE} '/tmp/{PROJECT}/{SCRIPT}{opts}'"
+            opts = self._custom_options
+            opts += ' -i -p -a ' + ' '.join(args.actions)
+            opts += ' -u ' + _uuid
+            command = "ssh {REMOTE} '/tmp/{UUID}/{SCRIPT}{opts}'"
             if skip:
                 opts += ' -s'
             if show_ok:
@@ -204,10 +235,10 @@ class BashInstall:
         # Set if we are running the script for the first time
         else:
             command = (
-                "if [ -f '/var/tmp/{PROJECT}_once' ]; then echo 'true'; fi")
+                "if [ -f '/var/tmp/{UUID}_once' ]; then echo 'true'; fi")
             self.first = self.run_cmd(command, mode='quiet') == 'true'
             if not self.first:
-                self.run_cmd('touch /var/tmp/{PROJECT}_once', mode='quiet')
+                self.run_cmd('touch /var/tmp/{UUID}_once', mode='quiet')
             if force_first:
                 self.first = True
 
@@ -623,6 +654,9 @@ class BashInstall:
             (('-i', '--is-remote'),
              {'default': False, 'action': 'store_true',
               'help': argparse.SUPPRESS, 'required': False}),
+            (('-u', '--uuid'),
+             {'default': [''], 'type': str,
+              'help': argparse.SUPPRESS, 'required': False}),
         ]
         # This conditional double parsing is necessary to guarantee that
         # "remote_required" is only used locally
@@ -644,5 +678,8 @@ class BashInstall:
         # Add all actions if "all" is found in action list
         if 'all' in args.actions:
             args.actions = list(self.actions_choices)
+
+        # Only get first element in uuid argument list
+        args.uuid = args.uuid[0]
 
         return args

@@ -70,6 +70,7 @@ if 'default' in actions:
     bprint("The value of PROJECT is: {PROJECT}")
     bprint("The value of SCRIPT is: {SCRIPT}")
     bprint("The value of DIR is: {DIR}")
+    bprint("The value of UUID is: {UUID}")
     bprint("The value of CUSTOM_ARG1 is: {CUSTOM_ARG1}")
 ```
 
