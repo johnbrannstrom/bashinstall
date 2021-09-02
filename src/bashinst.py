@@ -174,7 +174,7 @@ class BashInstall:
                          'is_remote', 'uuid']
         self._custom_options = ''
         for arg, value in vars(args).items():
-            if arg not in built_in_args:
+            if arg not in built_in_args and value.strip() != '':
                 self.run_cmd_vars[arg.upper()] = value
                 if ' ' in value:
                     value = '"' + value + '"'
@@ -264,7 +264,7 @@ class BashInstall:
         :param string: Target string to print.
 
         """
-        print(self.expand_vars(string))
+        print(self.expand_vars(string), flush=True)
 
     def path_exists(self, path: str):
         """
