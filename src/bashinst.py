@@ -295,6 +295,7 @@ class BashInstall:
                           "verbose": Print status, command, stdout and stderr
                                      to screen.
                           "quiet":   Only print errors.
+                          "dry-run": Onlt print command (don't run it).
         :param warning:   If warning status should be shown instead of error.
         :param show_ok:   If ok status should be shown.
 
@@ -354,7 +355,7 @@ class BashInstall:
                                                file_name=file_name)
                 error = None
 
-        # Handle dry run mode
+        # Handle dry-run mode
         if mode == 'dry-run':
             print(status_str, flush=True)
             return None
